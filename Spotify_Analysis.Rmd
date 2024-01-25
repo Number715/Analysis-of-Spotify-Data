@@ -1,0 +1,171 @@
+---
+title: "Spotify Data Analysis"
+author: "James Akemu"
+date: "2023-12-29"
+output: html_document
+---
+
+# Spotify Data Analysis
+
+This dataset contains a comprehensive list of the most famous songs from 1970 to 2023 as listed on Spotify.
+
+## Load the Necessary Packages.
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(knitr)
+```
+
+## Import and Clean our Data
+
+```{r}
+spotify <- read.csv('spotify-2023.csv') # Import the data
+str(spotify)
+spotify$artist_count <- as.factor(spotify$artist_count)
+spotify$streams <- as.integer(spotify$streams)
+spotify$in_deezer_playlists <- as.numeric(spotify$in_deezer_playlists)
+spotify$in_shazam_charts <- as.numeric(spotify$in_shazam_charts)
+spotify$mode <- as.factor(spotify$mode)
+label <- c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+spotify$released_month <- factor(spotify$released_month, labels = label, ordered = TRUE)
+head(spotify)
+```
+
+Let's Have a summary of the Data
+
+```{r}
+summary(spotify)
+```
+
+## Most popular artists and songs
+
+```{r}
+by_stream <- spotify %>% group_by(artist.s._name) %>% summarise(sum_streams = sum(streams)) %>% 
+  arrange(desc(sum_streams))
+head(by_stream)
+```
+
+Let us Graph the six most Popular Artists
+
+```{r}
+ggplot(head(by_stream), mapping = aes(x = artist.s._name, y = sum_streams)) + 
+  geom_col(fill = 'blue') + ggtitle('Most Popular Artists') + 
+  labs(x = 'Artist', y = 'Total Streams')
+```
+
+Taylor Swift is the most popular artist on Spotify with the most streams.
+
+The most popular song:
+
+```{r}
+pop_song <- spotify %>% select(track_name, artist.s._name, released_year, streams) %>% 
+  arrange(desc(streams))
+head(pop_song)
+```
+
+The most popular song is 'take me to church' by Hozier in 2013.
+
+## Time Series Analysis
+
+### Number of songs released on Spotify by year.
+
+```{r}
+gg <- spotify %>% group_by(released_year) %>% summarise(count_num_of_song = n())
+head(gg)
+```
+
+The Year with the most songs released was 2022.
+
+```{r}
+gg %>% arrange(desc(count_num_of_song))
+```
+
+Let us Graph song releases year on
+
+```{r}
+plot(x = gg$released_year, y = gg$count_num_of_song, type = 'l', lwd = 2, xlab = 'year',
+ylab = 'No of released songs', main = 'No of Released songs per year', sub = '1930-2023')
+```
+
+The number of songs released increased rapidly in 2021 peaking in 2022, and then slowing down in 2023.
+
+Let's analyze the year 2022(the year with the most songs).
+
+```{r}
+month <- spotify %>% filter(released_year == 2022) %>%  group_by(released_month) %>%  
+  summarise(num_of_song = n())
+ggplot(data = month, mapping = aes(x = released_month, y = num_of_song)) + geom_col(fill = 'blue') +
+  ggtitle('Number of songs per month in 2022') + labs(x = 'Month', y = 'Number of songs') + ylim(c(0, 85))
+```
+
+May had the highest number of Songs with 75 recorded. August had the least songs.
+
+## What makes a Song a Hit?
+
+We will examine the relationship between a song's stream and other factors 
+#### Does music mode influence streams?
+
+```{r}
+plot(spotify$streams~spotify$mode, main = 'Streams by music mode', xlab = 'Music mode', ylab = 'Streams',
+na.rm = TRUE)
+```
+
+Music mode doesn't seem to have an effect on streams.
+
+#### Does danceability influence streams?
+
+```{r}
+ggplot(spotify, aes(x = danceability_., y = streams), na.rm = TRUE) + geom_point() + geom_smooth(method = 'lm') +
+ggtitle('Relationship between streams and danceability') + labs(x = 'Danceability(%)', y = 'Streams')
+cor1 <- cor(spotify$streams, spotify$danceability_., use = 'complete.obs') # checking correlation
+cor1
+```
+
+There is a weak correlation between streams and danceability.
+
+#### Do energy levels correlate with streams?
+
+```{r}
+ggplot(spotify, aes(x = energy_., y = streams)) + geom_point() + geom_smooth(method = 'lm') +
+  ggtitle('Relationship between Streams and Energy Levels') + labs(x = 'Energy Level(%)', y = 'Streams')
+cor2 <- cor(spotify$energy_., spotify$streams, use = 'complete.obs')
+cor2
+```
+
+The correlation coefficient between the two variablesis negligible
+
+#### Does instrumentalness correlate with streams?
+
+```{r}
+ggplot(spotify, aes(x = instrumentalness_., y = streams)) + geom_point() + geom_smooth(method = 'lm') + ggtitle('Relationship between Streams and Instrumentalness') + labs(x = 'Instrumentalness(%)', y = 'Streams')
+cor3 <- cor(spotify$instrumentalness_., spotify$streams, use = 'complete.obs')
+cor3
+```
+
+Negligible relationship as seen from the plot and correlation coefficient
+
+#### Do Spoken words influence streams?
+
+```{r}
+ggplot(spotify, aes(x = speechiness_., y = streams)) + geom_point() + geom_smooth(method = 'lm') +
+  ggtitle('Relationship between Streams and Spoken words') + labs(x = 'Spoken words(%)', y = 'Streams')
+cor4 <- cor(spotify$speechiness_., spotify$streams, use = 'complete.obs')
+cor4
+```
+
+Somewhat negative correlation.
+
+### Multiple Linear Regression(measuring the effects of many variables)
+
+```{r}
+ml <- lm(streams~danceability_.+valence_.+energy_.+acousticness_.+instrumentalness_.+liveness_.+speechiness_., data = spotify)
+summary(ml)
+```
+
+Most of the variables affecting streams in this linear regression model are statistically insignificant. The Low R-squared values show that the combination of these variables has a small effect on streams.
+
+## Wrap up
+
+Streams(popularity of an artist or song) are influenced by many quantitative and qualitative variables not accounted for in this dataset.
