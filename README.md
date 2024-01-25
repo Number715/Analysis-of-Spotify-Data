@@ -1,0 +1,1 @@
+This dataset contains a comprehensive list of the most famous songs from 1970 to 2023 as listed on Spotify. We'll Analyze a build a regression model on what makes a top song. We'll also perform exploratory data analysis and visualizations using thr R programming language. The dataset is publicly available on Kaggle.
